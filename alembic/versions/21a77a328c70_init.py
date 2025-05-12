@@ -1,8 +1,8 @@
-"""Fixed models relationship
+"""init
 
-Revision ID: d642f425f833
-Revises: 7a9aaad5ac96
-Create Date: 2025-05-08 17:48:19.325230
+Revision ID: 21a77a328c70
+Revises: 
+Create Date: 2025-05-12 18:24:05.713921
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'd642f425f833'
-down_revision: Union[str, None] = '7a9aaad5ac96'
+revision: str = '21a77a328c70'
+down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

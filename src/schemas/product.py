@@ -1,19 +1,12 @@
 from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator, HttpUrl
+from pydantic import BaseModel, Field, field_validator, HttpUrl, ConfigDict
 from decimal import Decimal
-from enum import Enum
 from datetime import date
 
-class StockStatusEnum(str, Enum):
-    AVAILABLE = "Available"
-    NOT_AVAILABLE = "not available"
+from src.database.models.product import StockStatusEnum, StatusEnum
 
 
-class StatusEnum(str, Enum):
-    PROCESSING = "processing"
-    CANCELED = "canceled"
-    CLOSED = "closed"
-
+# ------------------ CATEGORY ------------------
 
 class CategoryBaseSchema(BaseModel):
     name: str = Field(..., max_length=255)
@@ -27,15 +20,12 @@ class CategoryBaseSchema(BaseModel):
             raise ValueError("Category name cannot be empty or whitespace")
         return value
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CategoryListSchema(CategoryBaseSchema):
     id: int
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CategoryResponseSchema(BaseModel):
@@ -45,18 +35,17 @@ class CategoryResponseSchema(BaseModel):
     total_pages: int
     total_items: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CategoryCreateSchema(CategoryBaseSchema):
     @field_validator("name", mode="before")
     @classmethod
     def normalize_name_category(cls, value: str) -> str:
-        """
-        Normalize name category
-        """
         return value.upper()
+
+
+# ------------------ PRODUCT ------------------
 
 class ProductBase(BaseModel):
     name: str = Field(..., max_length=255)
@@ -69,26 +58,22 @@ class ProductBase(BaseModel):
 
 class ProductListSchema(ProductBase):
     id: int
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductDetailSchema(ProductBase):
     id: int
     category: CategoryBaseSchema
 
-    class Config:
-        from_attributes = True
-
     @field_validator("name", mode="before")
     @classmethod
     def normalize_name_product(cls, value: str) -> str:
         return value.upper()
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class ProductCreateSchema(ProductBase):
-
     @field_validator("name", mode="before")
     @classmethod
     def normalize_name_product(cls, value: str) -> str:
@@ -111,9 +96,10 @@ class ProductResponseSchema(BaseModel):
     total_pages: int
     total_items: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ------------------ CART ------------------
 
 class CartItemBaseSchema(BaseModel):
     product_id: int
@@ -128,9 +114,15 @@ class CartItemResponseSchema(CartItemBaseSchema):
     id: int
     product: ProductListSchema
 
+    model_config = ConfigDict(from_attributes=True)
 
-class Config:
-    from_attributes = True
+
+class CartBaseSchema(BaseModel):
+    user_id: int
+
+
+class CartCreateSchema(CartBaseSchema):
+    cart_items: List[CartItemCreateSchema]
 
 
 class CartResponseSchema(BaseModel):
@@ -138,11 +130,10 @@ class CartResponseSchema(BaseModel):
     user_id: int
     cart_items: List[CartItemResponseSchema]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
-
+# ------------------ ORDER ------------------
 
 class OrderItemBaseSchema(BaseModel):
     product_id: int
@@ -156,10 +147,20 @@ class OrderItemCreateSchema(OrderItemBaseSchema):
 
 class OrderItemResponseSchema(OrderItemBaseSchema):
     id: int
-    product: ProductResponseSchema
+    product: ProductListSchema
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderBaseSchema(BaseModel):
+    user_id: int
+    status: Optional[StatusEnum] = StatusEnum.PROCESSING
+    total_price: Decimal
+    order_items: List[OrderItemCreateSchema]
+
+
+class OrderCreateSchema(OrderBaseSchema):
+    pass
 
 
 class OrderResponseSchema(BaseModel):
@@ -170,5 +171,9 @@ class OrderResponseSchema(BaseModel):
     total_price: Optional[Decimal]
     order_items: List[OrderItemResponseSchema]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ------------------ Forward Refs ------------------
+
+CategoryBaseSchema.model_rebuild()

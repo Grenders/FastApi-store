@@ -1,8 +1,8 @@
-"""Decimal model fixed
+"""create tables
 
-Revision ID: 8870be872531
-Revises: e9a64dbfa8e5
-Create Date: 2025-05-08 18:31:04.101156
+Revision ID: 433edb953c60
+Revises: 21a77a328c70
+Create Date: 2025-05-12 18:30:11.200482
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '8870be872531'
-down_revision: Union[str, None] = 'e9a64dbfa8e5'
+revision: str = '433edb953c60'
+down_revision: Union[str, None] = '21a77a328c70'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
