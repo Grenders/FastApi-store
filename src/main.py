@@ -7,4 +7,6 @@ app = FastAPI(
 
 api_version_prefix = "/api"
 
-app.include_router(product_router, prefix=f"{api_version_prefix}/products", tags=["products"])
+app.include_router(
+    product_router, prefix=f"{api_version_prefix}/products", tags=["products"]
+)

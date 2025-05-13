@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.schemas.product import (
     CategoryResponseSchema,
@@ -11,6 +12,7 @@ from src.schemas.product import (
     ProductResponseSchema,
     ProductListSchema,
     ProductDetailSchema,
+    CategoryCreateSchema,
 )
 from src.database.engine import get_postgresql_db
 from src.database.models.product import ProductModel, CategoryModel
@@ -37,7 +39,7 @@ async def get_product_list(
     if not total_items:
         raise HTTPException(status_code=404, detail="No products found.")
 
-    stmt = select(ProductModel)
+    stmt = select(ProductModel).options(selectinload(ProductModel.category))
     order_by = ProductModel.default_order_by()
     if order_by:
         stmt = stmt.order_by(*order_by)
@@ -53,8 +55,8 @@ async def get_product_list(
 
     return ProductResponseSchema(
         products=product_list,
-        prev_page=f"/products/?page={page - 1}&per_page={per_page}" if page > 1 else None,
-        next_page=f"/products/?page={page + 1}&per_page={per_page}" if page < total_pages else None,
+        prev_page=(f"/products/?page={page - 1}&per_page={per_page}" if page > 1 else None),
+        next_page=(f"/products/?page={page + 1}&per_page={per_page}" if page < total_pages else None),
         total_pages=total_pages,
         total_items=total_items,
     )
@@ -74,11 +76,15 @@ async def create_product(
     product_data: ProductCreateSchema,
     db: AsyncSession = Depends(get_postgresql_db),
 ) -> ProductDetailSchema:
-    category = await db.scalar(select(CategoryModel).where(CategoryModel.id == product_data.category_id))
+    category = await db.scalar(
+        select(CategoryModel).where(CategoryModel.id == product_data.category_id)
+    )
     if not category:
         raise HTTPException(status_code=404, detail="Category not found.")
 
-    existing = await db.scalar(select(ProductModel).where(ProductModel.name == product_data.name))
+    existing = await db.scalar(
+        select(ProductModel).where(ProductModel.name == product_data.name)
+    )
     if existing:
         raise HTTPException(status_code=400, detail="Product with this name already exists.")
 
@@ -112,13 +118,17 @@ async def update_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found.")
 
-    if product_data.category_id:
-        category = await db.scalar(select(CategoryModel).where(CategoryModel.id == product_data.category_id))
+    if product_data.category_id is not None:
+        category = await db.scalar(
+            select(CategoryModel).where(CategoryModel.id == product_data.category_id)
+        )
         if not category:
             raise HTTPException(status_code=404, detail="Category not found.")
 
     if product_data.name and product_data.name != product.name:
-        existing = await db.scalar(select(ProductModel).where(ProductModel.name == product_data.name))
+        existing = await db.scalar(
+            select(ProductModel).where(ProductModel.name == product_data.name)
+        )
         if existing:
             raise HTTPException(status_code=400, detail="Product with this name already exists.")
 
@@ -188,9 +198,43 @@ async def get_category_list(
     total_pages = (total_items + per_page - 1) // per_page
 
     return CategoryResponseSchema(
-        category=category_list,
-        prev_page=f"/category/?page={page - 1}&per_page={per_page}" if page > 1 else None,
-        next_page=f"/category/?page={page + 1}&per_page={per_page}" if page < total_pages else None,
+        categories=category_list,
+        prev_page=(f"/category/?page={page - 1}&per_page={per_page}" if page > 1 else None),
+        next_page=(f"/category/?page={page + 1}&per_page={per_page}" if page < total_pages else None),
         total_pages=total_pages,
         total_items=total_items,
     )
+
+
+@router.post(
+    "/category/",
+    response_model=CategoryListSchema,
+    summary="Add new Category",
+    status_code=201,
+    responses={
+        201: {"description": "Category created successfully."},
+        400: {"description": "Invalid input."},
+    },
+)
+async def create_category(
+    category_data: CategoryCreateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+) -> CategoryListSchema:
+    exist_stmt = select(CategoryModel).where(CategoryModel.name == category_data.name)
+    existing_result = await db.execute(exist_stmt)
+    if existing_result.scalars().first():
+        raise HTTPException(status_code=400, detail="Category with this name already exists.")
+
+    try:
+        category = CategoryModel(
+            name=category_data.name, description=category_data.description
+        )
+        db.add(category)
+        await db.commit()
+        await db.refresh(category)
+
+        return CategoryListSchema.model_validate(category)
+
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Invalid input data.")
