@@ -48,6 +48,20 @@ class CategoryCreateSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CategoryUpdateSchema(BaseModel):
+    name: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = Field(None, max_length=500)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name_not_empty(cls, value: Optional[str]) -> Optional[str]:
+        if value and not value.strip():
+            raise ValueError("Category name cannot be empty or whitespace")
+        return value
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ------------------ PRODUCT ------------------
 
 

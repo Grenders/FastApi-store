@@ -5,6 +5,8 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, field_validator
 import re
 
+from database.models.account import GenderEnum
+
 
 class BaseEmailPasswordSchema(BaseModel):
     email: EmailStr

@@ -13,6 +13,7 @@ from src.schemas.product import (
     ProductListSchema,
     ProductDetailSchema,
     CategoryCreateSchema,
+    CategoryUpdateSchema,
 )
 from src.database.engine import get_postgresql_db
 from src.database.models.product import ProductModel, CategoryModel
@@ -55,8 +56,14 @@ async def get_product_list(
 
     return ProductResponseSchema(
         products=product_list,
-        prev_page=(f"/products/?page={page - 1}&per_page={per_page}" if page > 1 else None),
-        next_page=(f"/products/?page={page + 1}&per_page={per_page}" if page < total_pages else None),
+        prev_page=(
+            f"/products/?page={page - 1}&per_page={per_page}" if page > 1 else None
+        ),
+        next_page=(
+            f"/products/?page={page + 1}&per_page={per_page}"
+            if page < total_pages
+            else None
+        ),
         total_pages=total_pages,
         total_items=total_items,
     )
@@ -86,7 +93,9 @@ async def create_product(
         select(ProductModel).where(ProductModel.name == product_data.name)
     )
     if existing:
-        raise HTTPException(status_code=400, detail="Product with this name already exists.")
+        raise HTTPException(
+            status_code=400, detail="Product with this name already exists."
+        )
 
     try:
         product = ProductModel(**product_data.model_dump())
@@ -123,14 +132,16 @@ async def update_product(
             select(CategoryModel).where(CategoryModel.id == product_data.category_id)
         )
         if not category:
-            raise HTTPException(status_code=404, detail="Category not found.")
+            raise HTTPException(status_code=404, detail="Product not found.")
 
     if product_data.name and product_data.name != product.name:
         existing = await db.scalar(
             select(ProductModel).where(ProductModel.name == product_data.name)
         )
         if existing:
-            raise HTTPException(status_code=400, detail="Product with this name already exists.")
+            raise HTTPException(
+                status_code=400, detail="Product with this name already exists."
+            )
 
     try:
         for field, value in product_data.model_dump(exclude_unset=True).items():
@@ -199,8 +210,14 @@ async def get_category_list(
 
     return CategoryResponseSchema(
         categories=category_list,
-        prev_page=(f"/category/?page={page - 1}&per_page={per_page}" if page > 1 else None),
-        next_page=(f"/category/?page={page + 1}&per_page={per_page}" if page < total_pages else None),
+        prev_page=(
+            f"/category/?page={page - 1}&per_page={per_page}" if page > 1 else None
+        ),
+        next_page=(
+            f"/category/?page={page + 1}&per_page={per_page}"
+            if page < total_pages
+            else None
+        ),
         total_pages=total_pages,
         total_items=total_items,
     )
@@ -223,7 +240,9 @@ async def create_category(
     exist_stmt = select(CategoryModel).where(CategoryModel.name == category_data.name)
     existing_result = await db.execute(exist_stmt)
     if existing_result.scalars().first():
-        raise HTTPException(status_code=400, detail="Category with this name already exists.")
+        raise HTTPException(
+            status_code=400, detail="Category with this name already exists."
+        )
 
     try:
         category = CategoryModel(
@@ -238,3 +257,74 @@ async def create_category(
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=400, detail="Invalid input data.")
+
+
+@router.patch(
+    "/category/{category_id}",
+    response_model=CategoryListSchema,
+    summary="Update info Category",
+    responses={
+        200: {"description": "Category updated successfully."},
+        400: {"description": "Invalid input or update data."},
+        404: {"description": "Category not found."},
+    },
+)
+async def update_category(
+    category_id: int,
+    category_data: CategoryUpdateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+) -> CategoryListSchema:
+
+    category = await db.scalar(
+        select(CategoryModel).where(CategoryModel.id == category_id)
+    )
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found.")
+
+    if category_data.name and category_data.name != category.name:
+        existing = await db.scalar(
+            select(CategoryModel).where(CategoryModel.name == category_data.name)
+        )
+        if existing:
+            raise HTTPException(
+                status_code=400, detail="Category with this name already exists."
+            )
+
+    try:
+        for field, value in category_data.model_dump(exclude_unset=True).items():
+            if value is not None:
+                setattr(category, field, value)
+
+        db.add(category)
+        await db.commit()
+        await db.refresh(category)
+        return CategoryListSchema.model_validate(category)
+    except IntegrityError as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
+
+
+@router.delete(
+    "/category/{category_id}",
+    response_model=None,
+    summary="Delete a category",
+    status_code=204,
+    responses={
+        204: {"description": "Category deleted successfully."},
+        403: {"description": "Admin access required."},
+        404: {"description": "Category not found."},
+    },
+)
+async def delete_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_postgresql_db),
+):
+    category = await db.scalar(
+        select(CategoryModel).where(CategoryModel.id == category_id)
+    )
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found.")
+
+    await db.delete(category)
+    await db.commit()
+    return
