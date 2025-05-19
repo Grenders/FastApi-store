@@ -1,6 +1,6 @@
 from decimal import Decimal
 from datetime import datetime
-from typing import List
+from typing import List, TYPE_CHECKING
 from enum import Enum
 
 from sqlalchemy import (
@@ -17,6 +17,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from src.database.models.base import Base
 from src.database.models.account import UserModel
 
+if TYPE_CHECKING:
+    from src.database.models.account import UserModel
 
 class StatusEnum(str, Enum):
     PROCESSING = "processing"

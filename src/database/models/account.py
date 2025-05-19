@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import List, Optional
+from datetime import datetime, timezone, timedelta
+from typing import List, Optional, TYPE_CHECKING
 from enum import Enum
 
 from sqlalchemy import (
@@ -10,12 +10,17 @@ from sqlalchemy import (
     ForeignKey,
     func,
     Enum as SQLAlchemyEnum,
+    UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from passlib.context import CryptContext
-from pydantic import EmailStr
+
 
 from src.database.models.base import Base
+
+if TYPE_CHECKING:
+    from src.database.models.product import CartModel, OrderModel
+
 
 
 class UserGroupEnum(str, Enum):
@@ -92,6 +97,18 @@ class UserModel(Base):
         "OrderModel", back_populates="user"
     )
 
+    password_reset_token: Mapped[Optional["PasswordResetTokenModel"]] = relationship(
+        "PasswordResetTokenModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    refresh_tokens: Mapped[List["RefreshTokenModel"]] = relationship(
+        "RefreshTokenModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
     def __repr__(self):
         return (
             f"<UserModel(id={self.id}, email={self.email}, is_active={self.is_active})>"
@@ -123,9 +140,86 @@ class UserModel(Base):
     def verify_password(self, raw_password: str) -> bool:
         return verify_password(raw_password, self._hashed_password)
 
-    @validates("email")
-    def validate_email(self, _, value: str) -> str:
-        try:
-            return str(EmailStr(value.lower()))
-        except ValueError as e:
-            raise ValueError(f"Invalid email: {value}") from e
+
+class TokenBaseModel(Base):
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(
+        String(512),
+        unique=True,
+        nullable=False,
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc) + timedelta(days=1),
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+
+
+class PasswordResetTokenModel(TokenBaseModel):
+    __tablename__ = "password_reset_tokens"
+
+    user: Mapped[UserModel] = relationship(
+        "UserModel", back_populates="password_reset_token"
+    )
+
+    __table_args__ = (UniqueConstraint("user_id"),)
+
+    def __repr__(self):
+        return f"<PasswordResetTokenModel(id={self.id}, token={self.token}, expires_at={self.expires_at})>"
+
+    @classmethod
+    def create(cls, user_id: int, token: str, hours_valid: int = 1) -> "PasswordResetTokenModel":
+        """
+        Factory method to create a new PasswordResetTokenModel instance.
+
+        Args:
+            user_id: The ID of the user associated with the token.
+            token: The reset token string.
+            hours_valid: Number of hours the token is valid for (default: 1).
+
+        Raises:
+            ValueError: If hours_valid is not positive or token is empty.
+
+        Returns:
+            A new PasswordResetTokenModel instance.
+        """
+        if hours_valid <= 0:
+            raise ValueError("hours_valid must be a positive integer")
+        if not token:
+            raise ValueError("Token cannot be empty")
+
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=hours_valid)
+        return cls(user_id=user_id, token=token, expires_at=expires_at)
+
+
+
+class RefreshTokenModel(TokenBaseModel):
+    __tablename__ = "refresh_tokens"
+
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="refresh_tokens")
+    token: Mapped[str] = mapped_column(
+        String(512),
+        unique=True,
+        nullable=False,
+    )
+
+    @classmethod
+    def create(cls, user_id: int | Mapped[int], days_valid: int, token: str) -> "RefreshTokenModel":
+        """
+        Factory method to create a new RefreshTokenModel instance.
+
+        This method simplifies the creation of a new refresh token by calculating
+        the expiration date based on the provided number of valid days and setting
+        the required attributes.
+        """
+        expires_at = datetime.now(timezone.utc) + timedelta(days=days_valid)
+        return cls(user_id=user_id, expires_at=expires_at, token=token)
+
+    def __repr__(self):
+        return f"<RefreshTokenModel(id={self.id}, token={self.token}, expires_at={self.expires_at})>"

@@ -1,11 +1,10 @@
-"""initial
+"""Increase token length in activation_tokens
 
-Revision ID: d9ea80835cf8
-Revises: 96e53ee3b448
-Create Date: 2025-05-13 17:37:25.059759
+Revision ID: de3b8dba50b0
+Revises: 779ce1ac5bc2
+Create Date: 2025-05-19 17:12:35.815537
 
 """
-
 from typing import Sequence, Union
 
 from alembic import op
@@ -13,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "d9ea80835cf8"
-down_revision: Union[str, None] = "96e53ee3b448"
+revision: str = 'de3b8dba50b0'
+down_revision: Union[str, None] = '779ce1ac5bc2'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

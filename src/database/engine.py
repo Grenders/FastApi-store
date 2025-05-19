@@ -1,10 +1,10 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-
+from src.database.models.account import UserGroupModel, UserGroupEnum
 from src.config import get_settings
 
 settings = get_settings()
@@ -53,3 +53,17 @@ async def get_postgresql_db_contextmanager() -> AsyncGenerator[AsyncSession, Non
     """
     async with AsyncPostgresqlSessionLocal() as session:
         yield session
+
+
+async def init_user_groups(db: AsyncSession) -> None:
+    """
+    Initialize user groups in the database if they don't exist.
+
+    This function ensures that the 'USER' and 'ADMIN' groups are present in the user_groups table.
+    """
+    for group_name in [UserGroupEnum.USER, UserGroupEnum.ADMIN]:
+        stmt = select(UserGroupModel).where(UserGroupModel.name == group_name)
+        result = await db.execute(stmt)
+        if not result.scalars().first():
+            db.add(UserGroupModel(name=group_name))
+    await db.commit()
