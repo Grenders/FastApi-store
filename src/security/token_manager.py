@@ -20,7 +20,9 @@ class JWTAuthManager(JWTAuthManagerInterface):
         self._secret_key_refresh = secret_key_refresh
         self._algorithm = algorithm
 
-    def _create_token(self, data: dict, secret_key: str, expires_delta: timedelta) -> str:
+    def _create_token(
+        self, data: dict, secret_key: str, expires_delta: timedelta
+    ) -> str:
         """
         Create a JWT token with provided data, secret key, and expiration time.
         """
@@ -29,23 +31,29 @@ class JWTAuthManager(JWTAuthManagerInterface):
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, secret_key, algorithm=self._algorithm)
 
-    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    def create_access_token(
+        self, data: dict, expires_delta: Optional[timedelta] = None
+    ) -> str:
         """
         Create a new access token with a default or specified expiration time.
         """
         return self._create_token(
             data,
             self._secret_key_access,
-            expires_delta or timedelta(minutes=self._ACCESS_KEY_TIMEDELTA_MINUTES))
+            expires_delta or timedelta(minutes=self._ACCESS_KEY_TIMEDELTA_MINUTES),
+        )
 
-    def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    def create_refresh_token(
+        self, data: dict, expires_delta: Optional[timedelta] = None
+    ) -> str:
         """
         Create a new refresh token with a default or specified expiration time.
         """
         return self._create_token(
             data,
             self._secret_key_refresh,
-            expires_delta or timedelta(minutes=self._REFRESH_KEY_TIMEDELTA_MINUTES))
+            expires_delta or timedelta(minutes=self._REFRESH_KEY_TIMEDELTA_MINUTES),
+        )
 
     def decode_access_token(self, token: str) -> dict:
         """
@@ -54,14 +62,12 @@ class JWTAuthManager(JWTAuthManagerInterface):
 
         return jwt.decode(token, self._secret_key_access, algorithms=[self._algorithm])
 
-
     def decode_refresh_token(self, token: str) -> dict:
         """
         Decode and validate a refresh token, returning the token's data.
         """
 
         return jwt.decode(token, self._secret_key_refresh, algorithms=[self._algorithm])
-
 
     def verify_refresh_token_or_raise(self, token: str) -> None:
         """

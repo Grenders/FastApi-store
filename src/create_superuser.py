@@ -8,6 +8,7 @@ import src.database.models.product
 from src.database.engine import AsyncPostgresqlSessionLocal
 from src.database.models.account import UserModel, UserGroupModel, UserGroupEnum
 
+
 async def main():
     async with AsyncPostgresqlSessionLocal() as session:
         email = input("Email: ").strip().lower()
@@ -25,7 +26,6 @@ async def main():
             print("❌ User with this email already exists.")
             return
 
-
         admin_group = await session.scalar(
             select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.ADMIN)
         )
@@ -34,13 +34,15 @@ async def main():
             session.add(admin_group)
             await session.flush()
 
-
-        user = UserModel.create(email=email, raw_password=password, group_id=admin_group.id)
+        user = UserModel.create(
+            email=email, raw_password=password, group_id=admin_group.id
+        )
         user.is_active = True
 
         session.add(user)
         await session.commit()
         print("✅ Superuser created successfully!")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

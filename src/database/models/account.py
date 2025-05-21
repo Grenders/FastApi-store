@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from src.database.models.product import CartModel, OrderModel
 
 
-
 class UserGroupEnum(str, Enum):
     USER = "user"
     ADMIN = "admin"
@@ -98,15 +97,11 @@ class UserModel(Base):
     )
 
     password_reset_token: Mapped[Optional["PasswordResetTokenModel"]] = relationship(
-        "PasswordResetTokenModel",
-        back_populates="user",
-        cascade="all, delete-orphan"
+        "PasswordResetTokenModel", back_populates="user", cascade="all, delete-orphan"
     )
 
     refresh_tokens: Mapped[List["RefreshTokenModel"]] = relationship(
-        "RefreshTokenModel",
-        back_populates="user",
-        cascade="all, delete-orphan"
+        "RefreshTokenModel", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self):
@@ -174,7 +169,9 @@ class PasswordResetTokenModel(TokenBaseModel):
         return f"<PasswordResetTokenModel(id={self.id}, token={self.token}, expires_at={self.expires_at})>"
 
     @classmethod
-    def create(cls, user_id: int, token: str, hours_valid: int = 1) -> "PasswordResetTokenModel":
+    def create(
+        cls, user_id: int, token: str, hours_valid: int = 1
+    ) -> "PasswordResetTokenModel":
         """
         Factory method to create a new PasswordResetTokenModel instance.
 
@@ -198,7 +195,6 @@ class PasswordResetTokenModel(TokenBaseModel):
         return cls(user_id=user_id, token=token, expires_at=expires_at)
 
 
-
 class RefreshTokenModel(TokenBaseModel):
     __tablename__ = "refresh_tokens"
 
@@ -210,7 +206,9 @@ class RefreshTokenModel(TokenBaseModel):
     )
 
     @classmethod
-    def create(cls, user_id: int | Mapped[int], days_valid: int, token: str) -> "RefreshTokenModel":
+    def create(
+        cls, user_id: int | Mapped[int], days_valid: int, token: str
+    ) -> "RefreshTokenModel":
         """
         Factory method to create a new RefreshTokenModel instance.
 

@@ -62,7 +62,7 @@ async def register_user(
         logger.warning(f"Registration attempt with existing email: {user_data.email}")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"A user with this email {user_data.email} already exists."
+            detail=f"A user with this email {user_data.email} already exists.",
         )
 
     stmt = select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER)
@@ -72,7 +72,7 @@ async def register_user(
         logger.error("Default user group not found")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Default user group not found."
+            detail="Default user group not found.",
         )
 
     try:
@@ -82,7 +82,7 @@ async def register_user(
             group_id=user_group.id,
         )
         new_user.is_active = True
-        new_user.gender = user_data.gender  # Зберігаємо gender
+        new_user.gender = user_data.gender
         db.add(new_user)
         await db.commit()
         await db.refresh(new_user)
@@ -92,10 +92,11 @@ async def register_user(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred during user creation."
+            detail="An error occurred during user creation.",
         ) from e
 
     return UserRegistrationResponseSchema.model_validate(new_user)
+
 
 @router.post(
     "/password-reset/request/",
@@ -119,7 +120,9 @@ async def request_password_reset_token(
     user = result.scalars().first()
 
     if not user or not user.is_active:
-        logger.info(f"Password reset requested for non-existent or inactive email: {data.email}")
+        logger.info(
+            f"Password reset requested for non-existent or inactive email: {data.email}"
+        )
         return MessageResponseSchema(
             message="If you are registered, you will receive an email with instructions."
         )
@@ -149,19 +152,22 @@ async def request_password_reset_token(
         db.add(reset_token)
         await db.flush()
         await db.commit()
-        logger.info(f"Password reset token created for user: email={user.email}, user_id={user.id}")
+        logger.info(
+            f"Password reset token created for user: email={user.email}, user_id={user.id}"
+        )
 
     except SQLAlchemyError as e:
-        logger.error(f"Failed to create password reset token for {data.email}: {str(e)}")
+        logger.error(
+            f"Failed to create password reset token for {data.email}: {str(e)}"
+        )
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while processing the request."
+            detail="An error occurred while processing the request.",
         )
 
-    return MessageResponseSchema(
-        message="You are can reset password,"
-    )
+    return MessageResponseSchema(message="You are can reset password,")
+
 
 @router.post(
     "/password-reset/complete/",
@@ -173,9 +179,7 @@ async def request_password_reset_token(
     ),
     status_code=status.HTTP_200_OK,
     responses={
-        400: {
-            "description": "Bad Request - Inactive user or invalid email."
-        },
+        400: {"description": "Bad Request - Inactive user or invalid email."},
         500: {
             "description": "Internal Server Error - An error occurred while processing the request."
         },
@@ -191,10 +195,12 @@ async def complete_password_reset_no_token(
     user = result.scalars().first()
 
     if not user or not user.is_active:
-        logger.info(f"Password reset attempt for non-existent or inactive email: {data.email}")
+        logger.info(
+            f"Password reset attempt for non-existent or inactive email: {data.email}"
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid user or inactive account."
+            detail="Invalid user or inactive account.",
         )
 
     try:
@@ -208,19 +214,19 @@ async def complete_password_reset_no_token(
         )
 
         await db.commit()
-        logger.info(f"Password reset (no-token) for user: email={user.email}, user_id={user.id}")
+        logger.info(
+            f"Password reset (no-token) for user: email={user.email}, user_id={user.id}"
+        )
 
     except SQLAlchemyError as e:
         logger.error(f"Failed to reset password for {data.email}: {str(e)}")
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while processing the request."
+            detail="An error occurred while processing the request.",
         )
 
-    return MessageResponseSchema(
-        message="Password has been successfully reset."
-    )
+    return MessageResponseSchema(message="Password has been successfully reset.")
 
 
 @router.post(

@@ -20,6 +20,7 @@ from src.database.models.account import UserModel
 if TYPE_CHECKING:
     from src.database.models.account import UserModel
 
+
 class StatusEnum(str, Enum):
     PROCESSING = "processing"
     CANCELED = "canceled"

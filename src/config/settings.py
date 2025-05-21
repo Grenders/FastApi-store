@@ -10,8 +10,12 @@ class Settings(BaseSettings):
     POSTGRES_DB_PORT: int = int(os.getenv("POSTGRES_DB_PORT", 5432))
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "test_db")
 
-    SECRET_KEY_ACCESS: str = os.getenv("SECRET_KEY_ACCESS", base64.urlsafe_b64encode(os.urandom(32)).decode())
-    SECRET_KEY_REFRESH: str = os.getenv("SECRET_KEY_REFRESH", base64.urlsafe_b64encode(os.urandom(32)).decode())
+    SECRET_KEY_ACCESS: str = os.getenv(
+        "SECRET_KEY_ACCESS", base64.urlsafe_b64encode(os.urandom(32)).decode()
+    )
+    SECRET_KEY_REFRESH: str = os.getenv(
+        "SECRET_KEY_REFRESH", base64.urlsafe_b64encode(os.urandom(32)).decode()
+    )
     JWT_SIGNING_ALGORITHM: str = os.getenv("JWT_SIGNING_ALGORITHM", "HS256")
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15

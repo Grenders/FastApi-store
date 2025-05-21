@@ -3,7 +3,10 @@ from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette import status
 
+from src.config.auth import get_current_admin_user, get_current_user
+from src.database.models.account import UserModel, UserGroupEnum
 from src.schemas.product import (
     CategoryResponseSchema,
     CategoryListSchema,
@@ -31,6 +34,7 @@ async def get_product_list(
     page: int = Query(1, ge=1, description="Page number (1-based index)"),
     per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
     db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     offset = (page - 1) * per_page
     count_stmt = select(func.count(ProductModel.id))
@@ -72,7 +76,7 @@ async def get_product_list(
 @router.post(
     "/products/",
     response_model=ProductDetailSchema,
-    summary="Add new Product",
+    summary="Add new Product (admin only)",
     status_code=201,
     responses={
         201: {"description": "Product created successfully."},
@@ -82,6 +86,7 @@ async def get_product_list(
 async def create_product(
     product_data: ProductCreateSchema,
     db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ) -> ProductDetailSchema:
     category = await db.scalar(
         select(CategoryModel).where(CategoryModel.id == product_data.category_id)
@@ -111,7 +116,7 @@ async def create_product(
 @router.put(
     "/products/{product_id}",
     response_model=ProductDetailSchema,
-    summary="Update an existing product",
+    summary="Update an existing product (admin only)",
     responses={
         200: {"description": "Product updated successfully."},
         400: {"description": "Invalid input or update data."},
@@ -122,6 +127,7 @@ async def update_product(
     product_id: int,
     product_data: ProductUpdateSchema,
     db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ) -> ProductDetailSchema:
     product = await db.scalar(select(ProductModel).where(ProductModel.id == product_id))
     if not product:
@@ -132,7 +138,7 @@ async def update_product(
             select(CategoryModel).where(CategoryModel.id == product_data.category_id)
         )
         if not category:
-            raise HTTPException(status_code=404, detail="Product not found.")
+            raise HTTPException(status_code=404, detail="Category not found.")
 
     if product_data.name and product_data.name != product.name:
         existing = await db.scalar(
@@ -158,7 +164,7 @@ async def update_product(
 @router.delete(
     "/products/{product_id}",
     response_model=None,
-    summary="Delete a product",
+    summary="Delete a product (admin only)",
     status_code=204,
     responses={
         204: {"description": "Product deleted successfully."},
@@ -169,14 +175,23 @@ async def update_product(
 async def delete_product(
     product_id: int,
     db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ):
     product = await db.scalar(select(ProductModel).where(ProductModel.id == product_id))
     if not product:
         raise HTTPException(status_code=404, detail="Product not found.")
 
-    await db.delete(product)
-    await db.commit()
-    return
+    try:
+        await db.delete(product)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete product: {str(e)}",
+        )
+
+    return None
 
 
 @router.get(
@@ -189,6 +204,7 @@ async def get_category_list(
     page: int = Query(1, ge=1, description="Page number (1-based index)"),
     per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
     db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     offset = (page - 1) * per_page
     count_stmt = select(func.count(CategoryModel.id))
@@ -226,7 +242,7 @@ async def get_category_list(
 @router.post(
     "/category/",
     response_model=CategoryListSchema,
-    summary="Add new Category",
+    summary="Add new Category (admin only)",
     status_code=201,
     responses={
         201: {"description": "Category created successfully."},
@@ -236,6 +252,7 @@ async def get_category_list(
 async def create_category(
     category_data: CategoryCreateSchema,
     db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ) -> CategoryListSchema:
     exist_stmt = select(CategoryModel).where(CategoryModel.name == category_data.name)
     existing_result = await db.execute(exist_stmt)
@@ -262,7 +279,7 @@ async def create_category(
 @router.patch(
     "/category/{category_id}",
     response_model=CategoryListSchema,
-    summary="Update info Category",
+    summary="Update info Category (admin only)",
     responses={
         200: {"description": "Category updated successfully."},
         400: {"description": "Invalid input or update data."},
@@ -273,8 +290,8 @@ async def update_category(
     category_id: int,
     category_data: CategoryUpdateSchema,
     db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ) -> CategoryListSchema:
-
     category = await db.scalar(
         select(CategoryModel).where(CategoryModel.id == category_id)
     )
@@ -307,7 +324,7 @@ async def update_category(
 @router.delete(
     "/category/{category_id}",
     response_model=None,
-    summary="Delete a category",
+    summary="Delete a category (admin only)",
     status_code=204,
     responses={
         204: {"description": "Category deleted successfully."},
@@ -318,6 +335,7 @@ async def update_category(
 async def delete_category(
     category_id: int,
     db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ):
     category = await db.scalar(
         select(CategoryModel).where(CategoryModel.id == category_id)
