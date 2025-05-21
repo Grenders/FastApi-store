@@ -17,9 +17,11 @@ from src.schemas.product import (
     ProductDetailSchema,
     CategoryCreateSchema,
     CategoryUpdateSchema,
+    CartResponseSchema,
+    CartListSchema, CartCreateSchema, CartDetailResponseSchema
 )
 from src.database.engine import get_postgresql_db
-from src.database.models.product import ProductModel, CategoryModel
+from src.database.models.product import ProductModel, CategoryModel, CartModel, CartItemModel
 
 router = APIRouter()
 
@@ -345,4 +347,124 @@ async def delete_category(
 
     await db.delete(category)
     await db.commit()
+    return
+
+
+@router.get(
+    "/cart/",
+    response_model=CartResponseSchema,
+    summary="Get a paginated list of carts for current user",
+    responses={404: {"description": "No carts found."}},
+)
+async def get_cart_list(
+    page: int = Query(1, ge=1, description="Page number (1-based index)"),
+    per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    offset = (page - 1) * per_page
+    count_stmt = select(func.count(CartModel.id)).where(CartModel.user_id == current_user.id)
+    result_count = await db.execute(count_stmt)
+    total_items = result_count.scalar() or 0
+
+    if not total_items:
+        raise HTTPException(status_code=404, detail="No carts found.")
+
+    stmt = select(CartModel).where(CartModel.user_id == current_user.id).offset(offset).limit(per_page)
+    result = await db.execute(stmt)
+    carts = result.scalars().all()
+
+    if not carts:
+        raise HTTPException(status_code=404, detail="No carts found.")
+
+    cart_list = [CartListSchema.model_validate(cart) for cart in carts]
+    total_pages = (total_items + per_page - 1) // per_page
+
+    return CartResponseSchema(
+        carts=cart_list,
+        prev_page=(f"/cart/?page={page - 1}&per_page={per_page}" if page > 1 else None),
+        next_page=(f"/cart/?page={page + 1}&per_page={per_page}" if page < total_pages else None),
+        total_pages=total_pages,
+        total_items=total_items,
+    )
+
+@router.post(
+    "/cart/",
+    response_model=CartDetailResponseSchema,
+    status_code=201,
+    summary="Create a new cart with items",
+    responses={
+        400: {"description": "Invalid input"},
+    },
+)
+async def create_cart(
+    cart_data: CartCreateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    new_cart = CartModel(user_id=current_user.id)
+    db.add(new_cart)
+    await db.flush()
+
+    cart_items = []
+    for item in cart_data.cart_items:
+        product = await db.get(ProductModel, item.product_id)
+        if not product:
+            raise HTTPException(status_code=400, detail=f"Product ID {item.product_id} not found")
+
+        cart_item = CartItemModel(
+            cart_id=new_cart.id,
+            product_id=item.product_id,
+            quantity=item.quantity
+        )
+        cart_items.append(cart_item)
+
+    db.add_all(cart_items)
+
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error saving cart: {str(e)}")
+
+    stmt = (
+        select(CartModel)
+        .options(
+            selectinload(CartModel.cart_items).selectinload(CartItemModel.product)
+        )
+        .where(CartModel.id == new_cart.id)
+    )
+    result = await db.execute(stmt)
+    cart_with_items = result.scalar_one()
+
+    return CartDetailResponseSchema.model_validate(cart_with_items)
+
+
+@router.delete(
+    "/cart/{cart_id}",
+    status_code=204,
+    summary="Delete cart by ID",
+    responses={404: {"description": "Cart not found."}},
+)
+async def delete_cart(
+    cart_id: int,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    result = await db.execute(select(CartModel).where(CartModel.id == cart_id))
+    cart = result.scalar_one_or_none()
+
+    if not cart:
+        raise HTTPException(status_code=404, detail="Cart not found.")
+
+    if cart.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this cart.")
+
+    try:
+        await db.delete(cart)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting cart: {str(e)}")
+
     return

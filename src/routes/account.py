@@ -1,14 +1,11 @@
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import  timedelta
 from typing import cast
-import jwt
-from fastapi import APIRouter, Query, Depends, HTTPException
-from sqlalchemy import select, func, delete
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select,  delete
+from sqlalchemy.exc import  SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 from starlette import status
-
 from src.config.dependencies import get_jwt_manager
 from src.config.settings import get_settings, Settings
 from src.security.interfaces import JWTAuthManagerInterface

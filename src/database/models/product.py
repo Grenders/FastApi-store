@@ -83,7 +83,9 @@ class CartModel(Base):
     )
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="carts")
     cart_items: Mapped[List["CartItemModel"]] = relationship(
-        "CartItemModel", back_populates="cart"
+        "CartItemModel",
+        back_populates="cart",
+        cascade="all, delete-orphan"
     )
 
     def __repr__(self):
@@ -112,7 +114,7 @@ class CartItemModel(Base):
         return f"<CartItemModel(id={self.id})>"
 
     @validates("quantity")
-    def validate_quantity(self, value):
+    def validate_quantity(self, key, value):
         if value <= 0:
             raise ValueError("Quantity must be greater than 0.")
         return value

@@ -1,11 +1,9 @@
 from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator, HttpUrl, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from decimal import Decimal
 from datetime import datetime
 
 from src.database.models.product import StockStatusEnum, StatusEnum
-
-# ------------------ CATEGORY ------------------
 
 
 class CategoryBaseSchema(BaseModel):
@@ -36,16 +34,8 @@ class CategoryResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class CategoryCreateSchema(BaseModel):
-    name: str = Field(..., max_length=255)
-    description: Optional[str] = Field(None, max_length=500)
-
-    @field_validator("name", mode="before")
-    @classmethod
-    def normalize_name_category(cls, value: str) -> str:
-        return value.upper()
-
-    model_config = ConfigDict(from_attributes=True)
+class CategoryCreateSchema(CategoryBaseSchema):
+    pass
 
 
 class CategoryUpdateSchema(BaseModel):
@@ -62,7 +52,6 @@ class CategoryUpdateSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ------------------ PRODUCT ------------------
 
 
 class ProductBase(BaseModel):
@@ -133,7 +122,6 @@ class ProductResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ------------------ CART ------------------
 
 
 class CartItemBaseSchema(BaseModel):
@@ -155,6 +143,13 @@ class CartItemResponseSchema(CartItemBaseSchema):
 
 
 class CartBaseSchema(BaseModel):
+
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CartListSchema(BaseModel):
+    id: int
     user_id: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -165,11 +160,19 @@ class CartCreateSchema(CartBaseSchema):
 
     model_config = ConfigDict(from_attributes=True)
 
-
-class CartResponseSchema(BaseModel):
+class CartDetailResponseSchema(BaseModel):
     id: int
     user_id: int
     cart_items: List[CartItemResponseSchema]
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CartResponseSchema(BaseModel):
+    carts: List[CartListSchema]
+    total_pages: int
+    total_items: int
+    prev_page: Optional[str] = None
+    next_page: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
