@@ -52,8 +52,6 @@ class CategoryUpdateSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-
-
 class ProductBase(BaseModel):
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
@@ -122,8 +120,6 @@ class ProductResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-
-
 class CartItemBaseSchema(BaseModel):
     product_id: int
     quantity: int
@@ -134,6 +130,17 @@ class CartItemBaseSchema(BaseModel):
 class CartItemCreateSchema(CartItemBaseSchema):
     pass
 
+class CartItemUpdateSchema(BaseModel):
+    quantity: int
+
+    @field_validator("quantity")
+    @classmethod
+    def validate_quantity(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("Quantity must be greater than 0.")
+        return value
+
+    model_config = ConfigDict(from_attributes=True)
 
 class CartItemResponseSchema(CartItemBaseSchema):
     id: int
@@ -144,15 +151,29 @@ class CartItemResponseSchema(CartItemBaseSchema):
 
 class CartBaseSchema(BaseModel):
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProductInCartSchema(BaseModel):
+    id: int
+    name: str
+    price: float
 
     model_config = ConfigDict(from_attributes=True)
 
+class CartItemSchema(BaseModel):
+    id: int
+    product: ProductInCartSchema
+    quantity: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 class CartListSchema(BaseModel):
     id: int
-    user_id: int
+    cart_items: list[CartItemSchema]
 
     model_config = ConfigDict(from_attributes=True)
+
 
 
 class CartCreateSchema(CartBaseSchema):
@@ -160,12 +181,14 @@ class CartCreateSchema(CartBaseSchema):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class CartDetailResponseSchema(BaseModel):
     id: int
     user_id: int
     cart_items: List[CartItemResponseSchema]
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class CartResponseSchema(BaseModel):
     carts: List[CartListSchema]
@@ -175,6 +198,8 @@ class CartResponseSchema(BaseModel):
     next_page: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
 
 
 # ------------------ ORDER ------------------
@@ -223,6 +248,4 @@ class OrderResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ------------------ Forward Refs ------------------
 
-CategoryBaseSchema.model_rebuild()

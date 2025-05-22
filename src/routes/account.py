@@ -1,9 +1,9 @@
 import logging
-from datetime import  timedelta
+from datetime import timedelta
 from typing import cast
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select,  delete
-from sqlalchemy.exc import  SQLAlchemyError
+from sqlalchemy import select, delete
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from src.config.dependencies import get_jwt_manager
