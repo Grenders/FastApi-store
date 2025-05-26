@@ -148,15 +148,15 @@ async def create_product(
         return ProductDetailSchema.model_validate(product)
     except ValidationError as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Validation error: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"Validation error: {str(e)}")
     except ValueError as e:
         await db.rollback()
         if "Price must be greater than 0" in str(e):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Price must be greater than 0.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid input: {str(e)}")
+            raise HTTPException(status_code=400, detail="Price must be greater than 0.")
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
     except IntegrityError as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
 
 
 @router.put(
@@ -179,14 +179,14 @@ async def update_product(
 
     product = await db.scalar(select(ProductModel).where(ProductModel.id == product_id))
     if not product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
+        raise HTTPException(status_code=404, detail="Product not found.")
 
     if product_data.category_id is not None:
         category = await db.scalar(
             select(CategoryModel).where(CategoryModel.id == product_data.category_id)
         )
         if not category:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found.")
+            raise HTTPException(status_code=404, detail="Category not found.")
 
     if product_data.name and product_data.name != product.name:
         existing = await db.scalar(
@@ -194,7 +194,7 @@ async def update_product(
         )
         if existing:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail="Product with this name already exists."
             )
 
@@ -208,15 +208,15 @@ async def update_product(
         return ProductDetailSchema.model_validate(product)
     except ValidationError as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Validation error: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"Validation error: {str(e)}")
     except ValueError as e:
         await db.rollback()
         if "Price must be greater than 0" in str(e):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Price must be greater than 0.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid input: {str(e)}")
+            raise HTTPException(status_code=400, detail="Price must be greater than 0.")
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
     except IntegrityError as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
 
 
 @router.delete(
@@ -245,7 +245,7 @@ async def delete_product(
     except Exception as e:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail=f"Failed to delete product: {str(e)}",
         )
 
