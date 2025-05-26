@@ -70,6 +70,12 @@ class ProductModel(Base):
         "OrderItemModel", back_populates="product"
     )
 
+    @validates("price")
+    def validate_price(self, key, value):
+        if value <= 0:
+            raise ValueError("Price must be greater than 0.")
+        return value
+
     def __repr__(self):
         return f"<Product(name='{self.name}')>"
 
@@ -144,7 +150,7 @@ class OrderModel(Base):
         return f"<OrderModel(id={self.id})>"
 
     @validates("total_price")
-    def validate_total_price(self, _, value):
+    def validate_total_price(self, key, value):
         if value <= 0:
             raise ValueError("Total price must be greater than 0.")
         return value
@@ -175,13 +181,13 @@ class OrderItemModel(Base):
         return f"<OrderItemModel(id={self.id})>"
 
     @validates("quantity")
-    def validate_quantity(self, value):
+    def validate_quantity(self, key, value):
         if value <= 0:
             raise ValueError("Quantity must be greater than 0.")
         return value
 
     @validates("price_at_order_time")
-    def validate_price(self, value):
+    def validate_price(self, key, value):
         if value < 0:
             raise ValueError("Price at order time cannot be negative.")
         return value

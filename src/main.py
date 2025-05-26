@@ -24,8 +24,8 @@ app = FastAPI(
 api_version_prefix = "/api"
 
 app.include_router(
-    product_router, prefix=f"{api_version_prefix}/products", tags=["products"]
+    product_router, prefix=f"{api_version_prefix}/v1", tags=["products"]
 )
 app.include_router(
-    account_router, prefix=f"{api_version_prefix}/accounts", tags=["accounts"]
+    account_router, prefix=f"{api_version_prefix}/v1/accounts", tags=["accounts"]
 )

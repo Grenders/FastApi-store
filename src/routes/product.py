@@ -1,9 +1,13 @@
+from decimal import Decimal
+
 from fastapi import APIRouter, Query, Depends, HTTPException
-from sqlalchemy import select, func
+from pydantic import ValidationError
+from sqlalchemy import select, func, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from starlette import status
+
 
 from src.config.auth import get_current_admin_user, get_current_user
 from src.database.models.account import UserModel
@@ -22,7 +26,10 @@ from src.schemas.product import (
     CartCreateSchema,
     CartDetailResponseSchema,
     CartItemCreateSchema,
-    CartItemResponseSchema, CartItemUpdateSchema,
+    CartItemResponseSchema,
+    CartItemUpdateSchema,
+    OrderResponseSchema,
+    OrderListResponseSchema,
 )
 from src.database.engine import get_postgresql_db
 from src.database.models.product import (
@@ -30,6 +37,9 @@ from src.database.models.product import (
     CategoryModel,
     CartModel,
     CartItemModel,
+    OrderModel,
+    OrderItemModel,
+    StatusEnum,
 )
 
 router = APIRouter()
@@ -88,10 +98,12 @@ async def get_product_list(
     "/products/",
     response_model=ProductDetailSchema,
     summary="Add new Product (admin only)",
-    status_code=201,
+    status_code=status.HTTP_201_CREATED,
     responses={
         201: {"description": "Product created successfully."},
-        400: {"description": "Invalid input."},
+        400: {"description": "Invalid input or database error."},
+        404: {"description": "Category not found."},
+        422: {"description": "Validation error."},
     },
 )
 async def create_product(
@@ -99,29 +111,52 @@ async def create_product(
     db: AsyncSession = Depends(get_postgresql_db),
     current_user: UserModel = Depends(get_current_admin_user),
 ) -> ProductDetailSchema:
+
     category = await db.scalar(
         select(CategoryModel).where(CategoryModel.id == product_data.category_id)
     )
     if not category:
-        raise HTTPException(status_code=404, detail="Category not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found.")
 
+
+    normalized_name = product_data.name.upper()
     existing = await db.scalar(
-        select(ProductModel).where(ProductModel.name == product_data.name)
+        select(ProductModel).where(ProductModel.name == normalized_name)
     )
     if existing:
         raise HTTPException(
-            status_code=400, detail="Product with this name already exists."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Product with this name already exists."
         )
+
 
     try:
         product = ProductModel(**product_data.model_dump())
         db.add(product)
+        await db.flush()
         await db.commit()
-        await db.refresh(product, ["category"])
+
+
+        stmt = (
+            select(ProductModel)
+            .options(selectinload(ProductModel.category))
+            .where(ProductModel.id == product.id)
+        )
+        result = await db.execute(stmt)
+        product = result.scalar_one()
+
         return ProductDetailSchema.model_validate(product)
+    except ValidationError as e:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Validation error: {str(e)}")
+    except ValueError as e:
+        await db.rollback()
+        if "Price must be greater than 0" in str(e):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Price must be greater than 0.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid input: {str(e)}")
     except IntegrityError as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Database error: {str(e)}")
 
 
 @router.put(
@@ -132,6 +167,7 @@ async def create_product(
         200: {"description": "Product updated successfully."},
         400: {"description": "Invalid input or update data."},
         404: {"description": "Product or category not found."},
+        422: {"description": "Validation error."},
     },
 )
 async def update_product(
@@ -140,16 +176,17 @@ async def update_product(
     db: AsyncSession = Depends(get_postgresql_db),
     current_user: UserModel = Depends(get_current_admin_user),
 ) -> ProductDetailSchema:
+
     product = await db.scalar(select(ProductModel).where(ProductModel.id == product_id))
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
 
     if product_data.category_id is not None:
         category = await db.scalar(
             select(CategoryModel).where(CategoryModel.id == product_data.category_id)
         )
         if not category:
-            raise HTTPException(status_code=404, detail="Category not found.")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found.")
 
     if product_data.name and product_data.name != product.name:
         existing = await db.scalar(
@@ -157,8 +194,10 @@ async def update_product(
         )
         if existing:
             raise HTTPException(
-                status_code=400, detail="Product with this name already exists."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Product with this name already exists."
             )
+
 
     try:
         for field, value in product_data.model_dump(exclude_unset=True).items():
@@ -167,9 +206,17 @@ async def update_product(
         await db.commit()
         await db.refresh(product, ["category"])
         return ProductDetailSchema.model_validate(product)
+    except ValidationError as e:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Validation error: {str(e)}")
+    except ValueError as e:
+        await db.rollback()
+        if "Price must be greater than 0" in str(e):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Price must be greater than 0.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid input: {str(e)}")
     except IntegrityError as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Database error: {str(e)}")
 
 
 @router.delete(
@@ -384,9 +431,7 @@ async def get_cart_list(
 
     stmt = (
         select(CartModel)
-        .options(
-            selectinload(CartModel.cart_items).selectinload(CartItemModel.product)
-        )
+        .options(selectinload(CartModel.cart_items).selectinload(CartItemModel.product))
         .where(CartModel.user_id == current_user.id)
         .offset(offset)
         .limit(per_page)
@@ -471,7 +516,7 @@ async def create_cart(
     responses={
         404: {"description": "Cart not found."},
         403: {"description": "Not authorized to delete this cart."},
-        }
+    },
 )
 async def delete_cart(
     cart_id: int,
@@ -521,15 +566,16 @@ async def add_item_to_user_cart(
     if not cart:
         raise HTTPException(status_code=404, detail="Cart not found for current user.")
 
-
     product = await db.get(ProductModel, item_data.product_id)
     if not product:
-        raise HTTPException(status_code=404, detail=f"Product ID {item_data.product_id} not found.")
+        raise HTTPException(
+            status_code=404, detail=f"Product ID {item_data.product_id} not found."
+        )
 
     result = await db.execute(
         select(CartItemModel).where(
             CartItemModel.cart_id == cart.id,
-            CartItemModel.product_id == item_data.product_id
+            CartItemModel.product_id == item_data.product_id,
         )
     )
     existing_item = result.scalar_one_or_none()
@@ -583,7 +629,9 @@ async def update_cart_item(
         raise HTTPException(status_code=404, detail="Cart item not found.")
 
     if cart_item.cart.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this item.")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to update this item."
+        )
 
     cart_item.quantity = item_data.quantity
 
@@ -592,7 +640,9 @@ async def update_cart_item(
         await db.refresh(cart_item)
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating cart item: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error updating cart item: {str(e)}"
+        )
 
     return CartItemResponseSchema.model_validate(cart_item)
 
@@ -623,14 +673,185 @@ async def delete_cart_item(
         raise HTTPException(status_code=404, detail="Cart item not found.")
 
     if cart_item.cart.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this item.")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to delete this item."
+        )
 
     await db.delete(cart_item)
     try:
         await db.commit()
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error deleting cart item: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting cart item: {str(e)}"
+        )
 
     return
 
+
+@router.get(
+    "/orders/",
+    response_model=OrderListResponseSchema,
+    summary="Get a paginated list of orders for current user",
+    responses={404: {"description": "No orders found."}},
+)
+async def get_order_list(
+    page: int = Query(1, ge=1, description="Page number (1-based index)"),
+    per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    offset = (page - 1) * per_page
+
+    count_stmt = select(func.count(OrderModel.id)).where(
+        OrderModel.user_id == current_user.id
+    )
+    result_count = await db.execute(count_stmt)
+    total_items = result_count.scalar() or 0
+
+    if not total_items:
+        raise HTTPException(status_code=404, detail="No orders found.")
+
+    stmt = (
+        select(OrderModel)
+        .options(
+            selectinload(OrderModel.order_items).selectinload(OrderItemModel.product)
+        )
+        .where(OrderModel.user_id == current_user.id)
+        .offset(offset)
+        .limit(per_page)
+    )
+
+    result = await db.execute(stmt)
+    orders = result.scalars().all()
+
+    if not orders:
+        raise HTTPException(status_code=404, detail="No orders found.")
+
+    orders_list = [OrderResponseSchema.model_validate(order) for order in orders]
+    total_pages = (total_items + per_page - 1) // per_page
+
+    return OrderListResponseSchema(
+        orders=orders_list,
+        prev_page=(
+            f"/orders/?page={page - 1}&per_page={per_page}" if page > 1 else None
+        ),
+        next_page=(
+            f"/orders/?page={page + 1}&per_page={per_page}"
+            if page < total_pages
+            else None
+        ),
+        total_pages=total_pages,
+        total_items=total_items,
+    )
+
+
+@router.post(
+    "/orders/",
+    response_model=OrderResponseSchema,
+    status_code=201,
+    summary="Create an order from current user's cart",
+    responses={
+        400: {"description": "Invalid input or empty cart"},
+        404: {"description": "Cart or product not found"},
+    },
+)
+async def create_order(
+    session: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    stmt = (
+        select(CartModel)
+        .options(
+            joinedload(CartModel.cart_items).joinedload(CartItemModel.product)
+        )
+        .where(CartModel.user_id == current_user.id)
+    )
+    result = await session.execute(stmt)
+    cart: CartModel = result.scalars().first()
+
+    if not cart or not cart.cart_items:
+        raise HTTPException(status_code=400, detail="Cart is empty or not found.")
+
+    order_items = []
+    total_price = Decimal("0")
+
+    for item in cart.cart_items:
+        product = item.product
+        if not product:
+            raise HTTPException(
+                status_code=404, detail=f"Product ID {item.product_id} not found."
+            )
+        if item.quantity <= 0:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid quantity for product {product.id}."
+            )
+        order_item = OrderItemModel(
+            product_id=product.id,
+            quantity=item.quantity,
+            price_at_order_time=Decimal(str(product.price)),
+        )
+        order_items.append(order_item)
+        total_price += Decimal(str(product.price)) * item.quantity
+
+    if total_price <= 0:
+        raise HTTPException(status_code=400, detail="Total price must be greater than 0.")
+
+
+    order = OrderModel(
+        user_id=current_user.id,
+        total_price=total_price,
+        status=StatusEnum.PROCESSING,
+        order_items=order_items,
+    )
+    session.add(order)
+    await session.flush()
+    await session.delete(cart)
+    await session.commit()
+
+    stmt = (
+        select(OrderModel)
+        .options(
+            selectinload(OrderModel.order_items).selectinload(OrderItemModel.product)
+        )
+        .where(OrderModel.id == order.id)
+    )
+    result = await session.execute(stmt)
+    order = result.scalar_one()
+
+    return OrderResponseSchema.model_validate(order)
+
+
+@router.delete(
+    "/orders/{order_id}/",
+    status_code=204,
+    summary="Delete an order belonging to the current user"
+)
+async def delete_order(
+    order_id: int,
+    session: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    stmt = select(OrderModel).where(
+        OrderModel.id == order_id,
+        OrderModel.user_id == current_user.id
+    )
+    result = await session.execute(stmt)
+    order = result.scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found"
+        )
+
+    await session.execute(
+        delete(OrderItemModel).where(OrderItemModel.order_id == order.id)
+    )
+
+    await session.execute(
+        delete(OrderModel).where(OrderModel.id == order.id)
+    )
+
+    await session.commit()
+    return

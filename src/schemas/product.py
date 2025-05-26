@@ -55,7 +55,7 @@ class CategoryUpdateSchema(BaseModel):
 class ProductBase(BaseModel):
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
-    price: Decimal = Field(..., ge=0)
+    price: Decimal = Field(..., gt=0)
     stock: StockStatusEnum
     category_id: int
     image_url: str = Field(..., max_length=255)
@@ -92,10 +92,17 @@ class ProductCreateSchema(ProductBase):
 class ProductUpdateSchema(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
-    price: Optional[Decimal] = Field(None, ge=0)
+    price: Optional[Decimal] = Field(None, gt=0)
     stock: Optional[StockStatusEnum] = None
     category_id: Optional[int] = None
     image_url: Optional[str] = None
+
+    @field_validator("price")
+    @classmethod
+    def validate_price(cls, value: Optional[Decimal]) -> Optional[Decimal]:
+        if value is not None and value <= 0:
+            raise ValueError("Price must be greater than 0")
+        return value
 
     @field_validator("name", mode="before")
     @classmethod
@@ -108,7 +115,6 @@ class ProductUpdateSchema(BaseModel):
         return str(value) if value else None
 
     model_config = ConfigDict(from_attributes=True)
-
 
 class ProductResponseSchema(BaseModel):
     products: List[ProductListSchema]
@@ -130,6 +136,7 @@ class CartItemBaseSchema(BaseModel):
 class CartItemCreateSchema(CartItemBaseSchema):
     pass
 
+
 class CartItemUpdateSchema(BaseModel):
     quantity: int
 
@@ -141,6 +148,7 @@ class CartItemUpdateSchema(BaseModel):
         return value
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class CartItemResponseSchema(CartItemBaseSchema):
     id: int
@@ -161,6 +169,7 @@ class ProductInCartSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class CartItemSchema(BaseModel):
     id: int
     product: ProductInCartSchema
@@ -168,12 +177,12 @@ class CartItemSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class CartListSchema(BaseModel):
     id: int
     cart_items: list[CartItemSchema]
 
     model_config = ConfigDict(from_attributes=True)
-
 
 
 class CartCreateSchema(CartBaseSchema):
@@ -200,22 +209,18 @@ class CartResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-
-
 # ------------------ ORDER ------------------
 
 
 class OrderItemBaseSchema(BaseModel):
     product_id: int
-    quantity: int
-    price_at_order_time: Decimal
+    quantity: int = Field(..., gt=0)
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class OrderItemCreateSchema(OrderItemBaseSchema):
     pass
-
 
 class OrderItemResponseSchema(OrderItemBaseSchema):
     id: int
@@ -225,9 +230,7 @@ class OrderItemResponseSchema(OrderItemBaseSchema):
 
 
 class OrderBaseSchema(BaseModel):
-    user_id: int
     status: Optional[StatusEnum] = StatusEnum.PROCESSING
-    total_price: Decimal
     order_items: List[OrderItemCreateSchema]
 
     model_config = ConfigDict(from_attributes=True)
@@ -240,12 +243,17 @@ class OrderCreateSchema(OrderBaseSchema):
 class OrderResponseSchema(BaseModel):
     id: int
     user_id: int
-    status: Optional[StatusEnum]
-    created_at: Optional[datetime]
-    total_price: Optional[Decimal]
+    status: StatusEnum
+    created_at: datetime
+    total_price: Decimal
     order_items: List[OrderItemResponseSchema]
 
     model_config = ConfigDict(from_attributes=True)
 
 
-
+class OrderListResponseSchema(BaseModel):
+    orders: List[OrderResponseSchema]
+    prev_page: Optional[str]
+    next_page: Optional[str]
+    total_pages: int
+    total_items: int
