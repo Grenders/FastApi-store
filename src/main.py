@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
+
 from src.routes.product import router as product_router
 from src.routes.account import router as account_router
 
@@ -23,9 +25,15 @@ app = FastAPI(
 
 api_version_prefix = "/api"
 
-app.include_router(
-    product_router, prefix=f"{api_version_prefix}/v1", tags=["products"]
-)
+app.include_router(product_router, prefix=f"{api_version_prefix}/v1", tags=["products"])
 app.include_router(
     account_router, prefix=f"{api_version_prefix}/v1/accounts", tags=["accounts"]
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )

@@ -1,4 +1,5 @@
 from typing import Optional
+from fastapi import HTTPException
 from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 import re
 from src.database.models.account import GenderEnum
@@ -18,20 +19,31 @@ class BaseEmailPasswordSchema(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, password: str) -> str:
-        if len(password) < 8:
-            raise ValueError("Password must contain at least 8 characters.")
-        if not re.search(r"[A-Z]", password):
-            raise ValueError("Password must contain at least one uppercase letter.")
-        if not re.search(r"[a-z]", password):
-            raise ValueError("Password must contain at least one lowercase letter.")
-        if not re.search(r"\d", password):
-            raise ValueError("Password must contain at least one digit.")
-        if not re.search(r"[@$!%*?&#]", password):
-            raise ValueError(
-                "Password must contain at least one special character: @, $, !, %, *, ?, #, &."
-            )
-        return password
+        errors = []
 
+        if len(password) < 8:
+            errors.append("Minimum 8 characters required")
+        if not re.search(r"[A-Z]", password):
+            errors.append("Must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", password):
+            errors.append("Must contain at least one lowercase letter")
+        if not re.search(r"\d", password):
+            errors.append("Must contain at least one digit")
+        if not re.search(r"[@$!%*?&#]", password):
+            errors.append("Must contain at least one special character: @, $, !, %, *, ?, #, &")
+
+        if errors:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "message": "Form contains errors",
+                    "errors": {
+                        "password": errors
+                    }
+                }
+            )
+
+        return password
 
 class UserRegistrationRequestSchema(BaseEmailPasswordSchema):
     gender: Optional[GenderEnum] = None

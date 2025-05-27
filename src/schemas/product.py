@@ -116,6 +116,7 @@ class ProductUpdateSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class ProductResponseSchema(BaseModel):
     products: List[ProductListSchema]
     prev_page: Optional[str] = None
@@ -222,6 +223,7 @@ class OrderItemBaseSchema(BaseModel):
 class OrderItemCreateSchema(OrderItemBaseSchema):
     pass
 
+
 class OrderItemResponseSchema(OrderItemBaseSchema):
     id: int
     product: ProductListSchema
@@ -257,3 +259,12 @@ class OrderListResponseSchema(BaseModel):
     next_page: Optional[str]
     total_pages: int
     total_items: int
+
+
+class TokenRefreshRequestSchema(BaseModel):
+    refresh_token: str
+
+
+class TokenRefreshResponseSchema(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
