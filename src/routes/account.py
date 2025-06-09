@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from starlette import status
 from src.config.dependencies import get_jwt_manager
 from src.config.settings import get_settings, Settings
@@ -214,14 +215,10 @@ async def complete_password_reset_no_token(
     description="Authenticate a user and return access and refresh tokens.",
     status_code=status.HTTP_200_OK,
     responses={
-        401: {
-            "description": "Unauthorized - Invalid email or password.",
-        },
-        403: {
-            "description": "Forbidden - User account is not activated.",
-        },
+        401: {"description": "Unauthorized - Invalid email or password."},
+        403: {"description": "Forbidden - User account is not activated."},
         500: {
-            "description": "Internal Server Error - An error occurred while processing the request.",
+            "description": "Internal Server Error - An error occurred while processing the request."
         },
     },
 )
@@ -232,7 +229,11 @@ async def login_user(
     jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_manager),
 ) -> UserLoginResponseSchema:
 
-    stmt = select(UserModel).filter_by(email=login_data.email)
+    stmt = (
+        select(UserModel)
+        .filter_by(email=login_data.email)
+        .options(selectinload(UserModel.group))
+    )
     result = await db.execute(stmt)
     user = result.scalars().first()
 
@@ -264,7 +265,7 @@ async def login_user(
         db.add(refresh_token)
         await db.flush()
         await db.commit()
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -274,6 +275,7 @@ async def login_user(
     return UserLoginResponseSchema(
         access_token=jwt_access_token,
         refresh_token=jwt_refresh_token,
+        role=user.group.name,
     )
 
 
@@ -338,6 +340,8 @@ async def refresh_access_token(
             detail="User not found.",
         )
 
-    new_access_token = jwt_manager.create_access_token({"user_id": user_id})
+    new_access_token = jwt_manager.create_access_token(
+        {"user_id": user.id, "email": user.email}
+    )
 
     return TokenRefreshResponseSchema(access_token=new_access_token)

@@ -77,7 +77,9 @@ dependencies = [
     "urllib3 (==2.4.0)",
     "virtualenv (==20.31.1)",
     "zipp (==3.21.0)",
-    "zstandard (==0.23.0)"
+    "zstandard (==0.23.0)",
+    "pytest (>=8.3.5,<9.0.0)",
+    "pytest-asyncio (>=1.0.0,<2.0.0)"
 ]
 
 

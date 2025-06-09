@@ -51,10 +51,10 @@ router = APIRouter()
     responses={404: {"description": "No products found."}},
 )
 async def get_product_list(
-        page: int = Query(1, ge=1, description="Page number (1-based index)"),
-        per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    page: int = Query(1, ge=1, description="Page number (1-based index)"),
+    per_page: int = Query(20, ge=1, le=20, description="Number of items per page"),
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     offset = (page - 1) * per_page
     count_stmt = select(func.count(ProductModel.id))
@@ -110,9 +110,9 @@ async def get_product_list(
     },
 )
 async def create_product(
-        product_data: ProductCreateSchema,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_admin_user),
+    product_data: ProductCreateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ) -> ProductDetailSchema:
     category = await db.scalar(
         select(CategoryModel).where(CategoryModel.id == product_data.category_id)
@@ -182,10 +182,10 @@ async def create_product(
     },
 )
 async def update_product(
-        product_id: int,
-        product_data: ProductUpdateSchema,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_admin_user),
+    product_id: int,
+    product_data: ProductUpdateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ) -> ProductDetailSchema:
     product = await db.scalar(select(ProductModel).where(ProductModel.id == product_id))
     if not product:
@@ -254,9 +254,9 @@ async def update_product(
     },
 )
 async def delete_product(
-        product_id: int,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_admin_user),
+    product_id: int,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ):
     product = await db.scalar(select(ProductModel).where(ProductModel.id == product_id))
     if not product:
@@ -284,10 +284,10 @@ async def delete_product(
     responses={404: {"description": "No categories found."}},
 )
 async def get_category_list(
-        page: int = Query(1, ge=1, description="Page number (1-based index)"),
-        per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    page: int = Query(1, ge=1, description="Page number (1-based index)"),
+    per_page: int = Query(20, ge=1, le=20, description="Number of items per page"),
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     offset = (page - 1) * per_page
     count_stmt = select(func.count(CategoryModel.id))
@@ -337,9 +337,9 @@ async def get_category_list(
     },
 )
 async def create_category(
-        category_data: CategoryCreateSchema,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_admin_user),
+    category_data: CategoryCreateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ) -> CategoryListSchema:
     exist_stmt = select(CategoryModel).where(CategoryModel.name == category_data.name)
     existing_result = await db.execute(exist_stmt)
@@ -378,10 +378,10 @@ async def create_category(
     },
 )
 async def update_category(
-        category_id: int,
-        category_data: CategoryUpdateSchema,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_admin_user),
+    category_id: int,
+    category_data: CategoryUpdateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ) -> CategoryListSchema:
     category = await db.scalar(
         select(CategoryModel).where(CategoryModel.id == category_id)
@@ -429,9 +429,9 @@ async def update_category(
     },
 )
 async def delete_category(
-        category_id: int,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_admin_user),
+    category_id: int,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_admin_user),
 ):
     category = await db.scalar(
         select(CategoryModel).where(CategoryModel.id == category_id)
@@ -454,10 +454,10 @@ async def delete_category(
     responses={status.HTTP_404_NOT_FOUND: {"description": "No carts found."}},
 )
 async def get_cart_list(
-        page: int = Query(1, ge=1, description="Page number (1-based index)"),
-        per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    page: int = Query(1, ge=1, description="Page number (1-based index)"),
+    per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     offset = (page - 1) * per_page
     count_stmt = select(func.count(CartModel.id)).where(
@@ -513,9 +513,9 @@ async def get_cart_list(
     },
 )
 async def create_cart(
-        cart_data: CartCreateSchema,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    cart_data: CartCreateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     new_cart = CartModel(user_id=current_user.id)
     db.add(new_cart)
@@ -563,15 +563,13 @@ async def create_cart(
     summary="Delete cart by ID",
     responses={
         404: {"description": "Cart not found."},
-        403: {
-            "description": "Not authorized to delete this cart."
-        },
+        403: {"description": "Not authorized to delete this cart."},
     },
 )
 async def delete_cart(
-        cart_id: int,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    cart_id: int,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     result = await db.execute(select(CartModel).where(CartModel.id == cart_id))
     cart = result.scalar_one_or_none()
@@ -600,16 +598,14 @@ async def delete_cart(
     summary="Add product to current user's cart",
     responses={
         404: {"description": "Cart or product not found."},
-        403: {
-            "description": "Not authorized to access this cart."
-        },
+        403: {"description": "Not authorized to access this cart."},
         400: {"description": "Invalid data provided."},
     },
 )
 async def add_item_to_user_cart(
-        item_data: CartItemCreateSchema,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    item_data: CartItemCreateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     result = await db.execute(
         select(CartModel).where(
@@ -670,16 +666,14 @@ async def add_item_to_user_cart(
     summary="Update quantity of a cart item by ID",
     responses={
         404: {"description": "Cart item not found"},
-        403: {
-            "description": "Not authorized to update this cart item"
-        },
+        403: {"description": "Not authorized to update this cart item"},
     },
 )
 async def update_cart_item(
-        item_id: int,
-        item_data: CartItemUpdateSchema,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    item_id: int,
+    item_data: CartItemUpdateSchema,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     stmt = (
         select(CartItemModel)
@@ -721,15 +715,13 @@ async def update_cart_item(
     summary="Delete a cart item by ID",
     responses={
         404: {"description": "Cart item not found"},
-        403: {
-            "description": "Not authorized to delete this cart item"
-        },
+        403: {"description": "Not authorized to delete this cart item"},
     },
 )
 async def delete_cart_item(
-        item_id: int,
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    item_id: int,
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     stmt = (
         select(CartItemModel)
@@ -770,10 +762,10 @@ async def delete_cart_item(
     responses={404: {"description": "No orders found."}},
 )
 async def get_order_list(
-        page: int = Query(1, ge=1, description="Page number (1-based index)"),
-        per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
-        db: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    page: int = Query(1, ge=1, description="Page number (1-based index)"),
+    per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
+    db: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     offset = (page - 1) * per_page
 
@@ -835,8 +827,8 @@ async def get_order_list(
     },
 )
 async def create_order(
-        session: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     stmt = (
         select(CartModel)
@@ -915,9 +907,9 @@ async def create_order(
     },
 )
 async def delete_order(
-        order_id: int,
-        session: AsyncSession = Depends(get_postgresql_db),
-        current_user: UserModel = Depends(get_current_user),
+    order_id: int,
+    session: AsyncSession = Depends(get_postgresql_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
     stmt = select(OrderModel).where(
         OrderModel.id == order_id, OrderModel.user_id == current_user.id

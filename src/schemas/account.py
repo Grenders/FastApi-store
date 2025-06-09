@@ -30,20 +30,21 @@ class BaseEmailPasswordSchema(BaseModel):
         if not re.search(r"\d", password):
             errors.append("Must contain at least one digit")
         if not re.search(r"[@$!%*?&#]", password):
-            errors.append("Must contain at least one special character: @, $, !, %, *, ?, #, &")
+            errors.append(
+                "Must contain at least one special character: @, $, !, %, *, ?, #, &"
+            )
 
         if errors:
             raise HTTPException(
                 status_code=422,
                 detail={
                     "message": "Form contains errors",
-                    "errors": {
-                        "password": errors
-                    }
-                }
+                    "errors": {"password": errors},
+                },
             )
 
         return password
+
 
 class UserRegistrationRequestSchema(BaseEmailPasswordSchema):
     gender: Optional[GenderEnum] = None
@@ -65,6 +66,7 @@ class UserLoginResponseSchema(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    role: str
 
 
 class UserRegistrationResponseSchema(BaseModel):

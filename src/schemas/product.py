@@ -210,9 +210,6 @@ class CartResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ------------------ ORDER ------------------
-
-
 class OrderItemBaseSchema(BaseModel):
     product_id: int
     quantity: int = Field(..., gt=0)
