@@ -5,12 +5,12 @@ Overview
 FastAPI-Store is a web application built using FastAPI, designed to manage an online store with features for user registration, login, product management, shopping carts, and order processing. The project is structured with a modular design, utilizing Python, SQLAlchemy for database operations, and Pydantic for data validation.
 
 ## Project Structure
-config/: Configuration files including authentication and settings.
-database/: Database models and engine setup using SQLAlchemy.
-routes/: API endpoints for account management, products, carts, and orders.
-schemas/: Pydantic models for request and response validation.
-security/: Authentication and token management utilities.
-tests/: Unit and integration tests.
+- config/: Configuration files including authentication and settings.
+- database/: Database models and engine setup using SQLAlchemy.
+- routes/: API endpoints for account management, products, carts, and orders.
+- schemas/: Pydantic models for request and response validation.
+- security/: Authentication and token management utilities.
+- tests/: Unit and integration tests.
 
 Additional files: .env, Dockerfile, poetry.lock, pyproject.toml, etc., for environment setup and dependency management.
 
