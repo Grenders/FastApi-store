@@ -1,12 +1,29 @@
 import asyncio
 from getpass import getpass
+import re
 from sqlalchemy import select
-
-import src.database.models.account
-import src.database.models.product
 
 from src.database.engine import AsyncPostgresqlSessionLocal
 from src.database.models.account import UserModel, UserGroupModel, UserGroupEnum
+
+
+def validate_password(password: str) -> list[str]:
+    errors = []
+
+    if len(password) < 8:
+        errors.append("Minimum 8 characters required")
+    if not re.search(r"[A-Z]", password):
+        errors.append("Must contain at least one uppercase letter")
+    if not re.search(r"[a-z]", password):
+        errors.append("Must contain at least one lowercase letter")
+    if not re.search(r"\d", password):
+        errors.append("Must contain at least one digit")
+    if not re.search(r"[@$!%*?&#]", password):
+        errors.append(
+            "Must contain at least one special character: @, $, !, %, *, ?, #, &"
+        )
+
+    return errors
 
 
 async def main():
@@ -17,6 +34,13 @@ async def main():
 
         if password != confirm_password:
             print("❌ Passwords do not match.")
+            return
+
+        password_errors = validate_password(password)
+        if password_errors:
+            print("❌ Password validation failed:")
+            for error in password_errors:
+                print(f"   - {error}")
             return
 
         existing_user = await session.scalar(

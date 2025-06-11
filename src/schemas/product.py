@@ -55,10 +55,15 @@ class CategoryUpdateSchema(BaseModel):
 class ProductBase(BaseModel):
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
-    price: Decimal = Field(..., gt=0)
+    price: float = Field(..., gt=0)
     stock: StockStatusEnum
     category_id: int
-    image_url: str = Field(..., max_length=255)
+    image_url: Optional[str] = Field(None, max_length=255)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name_product(cls, value: str) -> str:
+        return value.upper() if value else value
 
     model_config = ConfigDict(from_attributes=True)
 

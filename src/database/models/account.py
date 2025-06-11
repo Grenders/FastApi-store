@@ -14,8 +14,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from passlib.context import CryptContext
-
-
 from src.database.models.base import Base
 
 if TYPE_CHECKING:
@@ -91,10 +89,8 @@ class UserModel(Base):
         "UserGroupModel", back_populates="users"
     )
 
-    carts: Mapped[List["CartModel"]] = relationship("CartModel", back_populates="user")
-    orders: Mapped[List["OrderModel"]] = relationship(
-        "OrderModel", back_populates="user"
-    )
+    carts: Mapped[List["CartModel"]] = relationship("CartModel", back_populates="user", lazy="selectin")
+    orders: Mapped[List["OrderModel"]] = relationship("OrderModel", back_populates="user", lazy="selectin")
 
     password_reset_token: Mapped[Optional["PasswordResetTokenModel"]] = relationship(
         "PasswordResetTokenModel", back_populates="user", cascade="all, delete-orphan"

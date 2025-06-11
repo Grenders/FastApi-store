@@ -1,6 +1,6 @@
  ## FastAPI-Store Project
 
-Overview
+# Overview
 
 FastAPI-Store is a web application built using FastAPI, designed to manage an online store with features for user registration, login, product management, shopping carts, and order processing. The project is structured with a modular design, utilizing Python, SQLAlchemy for database operations, and Pydantic for data validation.
 
@@ -16,11 +16,11 @@ Additional files: .env, Dockerfile, poetry.lock, pyproject.toml, etc., for envir
 
 ## Features
 
-User Management: Registration, login, password reset, and token refresh functionality.
-Product Management: CRUD operations for products and categories (admin-only).
-Shopping Cart: Add, update, and remove items; create and delete carts.
-Order Processing: Create and delete orders based on cart contents.
-Security: JWT-based authentication with role-based access control (admin/user).
+- User Management: Registration, login, password reset, and token refresh functionality.
+- Product Management: CRUD operations for products and categories (admin-only).
+- Shopping Cart: Add, update, and remove items; create and delete carts.
+- Order Processing: Create and delete orders based on cart contents.
+- Security: JWT-based authentication with role-based access control (admin/user).
 
 ## Installation
 
@@ -42,6 +42,10 @@ Security: JWT-based authentication with role-based access control (admin/user).
    POSTGRES_USER=your_user
    POSTGRES_PASSWORD=your_secure_password
    POSTGRES_PORT=5432
+   # JWT keys
+   SECRET_KEY_ACCESS=SECRET_KEY_ACCESS
+   SECRET_KEY_REFRESH=SECRET_KEY_REFRESH
+   JWT_SIGNING_ALGORITHM=JWT_SIGNING_ALGORITHM
 
 
 ## The project is containerized using Docker and Docker Compose. It consists of Django and PostgreSQL services.
@@ -59,4 +63,8 @@ Security: JWT-based authentication with role-based access control (admin/user).
 
 # special command to create an admin user
    ```bash
+   docker exec -it fastapi-store-app bash
+```
+after
+ ```bash
    python src/create_superuser.py

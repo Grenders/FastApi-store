@@ -17,6 +17,7 @@ RUN python -m pip install --upgrade pip && \
     pip install poetry
 
 WORKDIR /usr/src/app
+ENV PYTHONPATH=/usr/src/app:/usr/src/app/src
 
 COPY pyproject.toml poetry.lock ./
 COPY alembic.ini ./

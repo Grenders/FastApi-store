@@ -15,7 +15,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from src.database.models.base import Base
-from src.database.models.account import UserModel
 
 if TYPE_CHECKING:
     from src.database.models.account import UserModel
@@ -87,7 +86,7 @@ class CartModel(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    user: Mapped["UserModel"] = relationship("UserModel", back_populates="carts")
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="carts", lazy="selectin")
     cart_items: Mapped[List["CartItemModel"]] = relationship(
         "CartItemModel", back_populates="cart", cascade="all, delete-orphan"
     )

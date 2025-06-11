@@ -79,7 +79,9 @@ dependencies = [
     "zipp (==3.21.0)",
     "zstandard (==0.23.0)",
     "pytest (>=8.3.5,<9.0.0)",
-    "pytest-asyncio (>=1.0.0,<2.0.0)"
+    "pytest-asyncio (>=1.0.0,<2.0.0)",
+    "aiosqlite (>=0.21.0,<0.22.0)",
+    "asgi-lifespan (>=2.1.0,<3.0.0)"
 ]
 
 
